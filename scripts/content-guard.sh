@@ -7,6 +7,7 @@
 #   2. ~/.config/content-guard/extra.txt           private literal terms, local only
 #   3. $CONTENT_GUARD_EXTRA                        private literal terms, newline-separated (CI secret)
 #
+# Private terms match whole words only (so "Terri" does not match "territory").
 # A line containing "guard:allow" is skipped.
 
 set -euo pipefail
@@ -55,7 +56,7 @@ report() {
 }
 
 report -E "$tmp/regex" "patterns"
-report -F "$tmp/literal" "private terms"
+report -Fw "$tmp/literal" "private terms"
 
 if [[ "$hits" -ne 0 ]]; then
   echo
