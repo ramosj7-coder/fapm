@@ -1,0 +1,100 @@
+# FAPM annotation: ambient AI documentation capture (vendor-agnostic)
+# Spec: ../../SPEC.md   Narrative: ./README.md
+#
+# Node annotations are taken from the original manual annotation pass.
+# The `external` and `provenance` blocks are the declarations that pass assumed implicitly;
+# they are written out here so the checker can evaluate them.
+
+fapm: "0.1"
+pipeline: ambient-documentation-capture
+title: Ambient AI documentation capture
+
+# Features that enter the pipeline from outside it (people, devices, the EHR).
+# Anything a node needs that is neither produced upstream nor declared here is a gap.
+external:
+  - { name: patient_identity_confirmed,  from: N1, source: "front-desk / bedside identity check" }
+  - { name: provider_identity_confirmed, from: N1, source: "provider login" }
+  - { name: patient_consent_status,      from: N1, source: "consent workflow" }
+  - { name: ambient_tool_activated,      from: N1, source: "provider action" }
+  - { name: scheduled_encounter_record,  from: N1, source: "EHR scheduling" }
+  - { name: prior_note_context,          from: N1, source: "EHR" }
+  - { name: patient_problem_list,        from: N1, source: "EHR" }
+  - { name: ambient_tool_config,         from: N1, source: "ambient tool configuration" }
+  - { name: audio_stream,                from: N2, source: "capture device" }
+  - { name: audio_stream_available,      from: N2, source: "capture device" }
+  - { name: provider_signature,          from: N5, source: "provider action" }
+
+# What governance needs to be traceable from the final record, and what the record carries.
+provenance:
+  record: finalization_metadata
+  produced_at: N5
+  includes: [acceptance_flag, edit_delta, review_duration, model_version_ID]
+  required:
+    - model_version_ID           # which model produced the draft
+    - acceptance_flag            # whether the human accepted, edited or rejected
+    - rejection_reason           # why the human overrode the AI
+    - ehr_context_accessed_flag  # which inference inputs beyond the audio were used
+
+nodes:
+  - id: N1
+    name: Encounter initiation
+    required:  [patient_identity_confirmed, provider_identity_confirmed, patient_consent_status, ambient_tool_activated]
+    available: [scheduled_encounter_record, prior_note_context, patient_problem_list, ambient_tool_config]
+    consumed:  [scheduled_encounter_record, patient_consent_status, ambient_tool_config]
+    produced:  [session_ID, capture_active_flag, consent_documented_flag, encounter_context_record]
+    next: [N2]
+
+  - id: N2
+    name: Ambient audio capture
+    required:  [session_ID, capture_active_flag, audio_stream_available]
+    available: [session_ID, capture_active_flag, encounter_context_record, audio_stream]
+    consumed:  [audio_stream, encounter_context_record]
+    produced:  [audio_transcript_raw, session_duration, audio_quality_score]
+    next: [N3]
+
+  - id: N3
+    name: AI draft generation
+    required:  [audio_transcript_raw, encounter_context_record, model_version_ID]
+    available: [audio_transcript_raw, encounter_context_record, audio_quality_score, patient_problem_list, prior_note_context]
+    consumed:  [audio_transcript_raw, encounter_context_record, model_version_ID, patient_problem_list, prior_note_context]
+    produced:  [draft_note, section_confidence_scores, draft_generation_timestamp, model_version_ID, ehr_context_accessed_flag]
+    next: [N4]
+
+  - id: N4
+    name: Provider review and edit
+    decision: "Magnitude of provider edits to the draft (the human-in-the-loop checkpoint)"
+    required:  [draft_note, provider_identity_confirmed, edit_interface_active]
+    available: [draft_note, section_confidence_scores, encounter_context_record, prior_note_context]
+    consumed:  [draft_note, section_confidence_scores]
+    branches:
+      - id: A
+        name: Full acceptance
+        produced: [acceptance_flag, edit_delta, review_duration, review_timestamp]
+      - id: B
+        name: Partial edit
+        produced: [acceptance_flag, edit_delta, sections_modified, review_duration, review_timestamp]
+      - id: C
+        name: Full rejection and manual rewrite
+        produced:
+          - acceptance_flag
+          - manual_note_content
+          - { name: rejection_reason, type: free_text, optional: true }
+          - review_duration
+          - review_timestamp
+    next: [N5]
+
+  - id: N5
+    name: Note finalization
+    required:  [final_note_content, provider_signature, ehr_write_access]
+    available: [final_note_content, edit_delta, acceptance_flag, encounter_context_record, review_duration]
+    consumed:  [final_note_content, provider_signature, encounter_context_record]
+    produced:  [signed_note_record, note_commit_timestamp, ehr_note_ID, finalization_metadata]
+    next: [N6]
+
+  - id: N6
+    name: Downstream consumption
+    required:  [signed_note_record, ehr_note_ID]
+    available: [signed_note_record, ehr_note_ID, finalization_metadata]
+    consumed:  [signed_note_record]
+    produced:  [billing_codes, care_team_alerts, future_encounter_context]
+    next: []

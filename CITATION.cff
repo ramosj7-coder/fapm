@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use FAPM, please cite it as below."
+title: "Feature-Annotated Process Models (FAPM): a specification method for clinical AI workflows"
+abstract: >-
+  FAPM attaches a data specification to each step of a clinical AI workflow: the features each step
+  requires, can see, reads, and produces. Static analysis of the annotation surfaces missing producers,
+  branch-dependent inputs, undeclared data flows, provenance gaps and unstructured override data before
+  deployment. Includes a specification, a worked ambient AI documentation example, and a checker.
+type: software
+authors:
+  - family-names: Ramos
+    given-names: Jorge A.
+version: 0.1.0
+date-released: 2026-11-06
+license: CC-BY-4.0
+repository-code: "https://github.com/ramosj7-coder/fapm"
+keywords:
+  - clinical AI
+  - AI governance
+  - process modeling
+  - data provenance
+  - ambient documentation
+  - health informatics
