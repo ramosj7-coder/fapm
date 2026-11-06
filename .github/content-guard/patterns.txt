@@ -1,0 +1,13 @@
+# Generic blocked patterns (extended regex, case-insensitive). One per line; # starts a comment.
+# Private terms (people, internal program names) do NOT go here: this file is public.
+# Put those in ~/.config/content-guard/extra.txt (local) and the CONTENT_GUARD_EXTRA secret (CI).
+
+# Employer identifiers
+\bVCU\b
+\bVCUHS\b
+Virginia Commonwealth University
+Clinically Intelligent AI
+
+# PHI-shaped data
+\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b
+\bMRN[:# ]*[0-9]{5,}

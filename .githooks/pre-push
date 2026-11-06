@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Blocks a push if the content guard finds employer-specific or PHI-shaped content.
+# Enable once per clone with: scripts/install-hooks.sh
+exec "$(git rev-parse --show-toplevel)/scripts/content-guard.sh"
